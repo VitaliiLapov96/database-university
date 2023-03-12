@@ -95,3 +95,55 @@ BEGIN
   	RETURN red_zone <= 3;
 END;
 $$;
+
+-- 12
+CREATE TABLE student_address
+(
+    id         int,
+    city 	   varchar(50),
+    street     varchar(50),
+	building   int,
+	student_id int,
+    CONSTRAINT "student_address_pk" PRIMARY KEY (id),
+    CONSTRAINT student_address_to_student_rel FOREIGN KEY (student_id)
+        REFERENCES student(id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION
+        NOT VALID
+);
+
+-- create trigger
+CREATE OR REPLACE FUNCTION stop_update_on_student_address()
+ 	RETURNS TRIGGER
+	LANGUAGE plpgsql
+AS
+$BODY$
+BEGIN
+	IF NEW.id <> OLD.id
+		OR NEW.city <> OLD.city 
+		OR NEW.street <> OLD.street
+		OR NEW.building <> OLD.building
+		OR NEW.student_id <> OLD.student_id 
+		THEN RAISE EXCEPTION 'Not allowed to update any fields';
+	END IF;
+	RETURN NEW;
+END;
+$BODY$
+
+CREATE TRIGGER avoid_student_address_update
+BEFORE UPDATE
+ON student_address
+FOR EACH ROW
+EXECUTE PROCEDURE stop_update_on_student_address();
+
+-- test student addresses
+INSERT INTO student_address VALUES(1, 'Lviv', 'Mazepa', 14, 1);
+INSERT INTO student_address VALUES(2, 'Lviv', 'Shevchenka', 134, 2);
+INSERT INTO student_address VALUES(3, 'Lviv', 'Chornovola', 141, 3);
+
+-- test to update student addresses
+UPDATE student_address SET id = '5' where id = 1;
+UPDATE student_address SET city = 'Kyiv' where id = 1;
+UPDATE student_address SET street = 'Panasa' where id = 1;
+UPDATE student_address SET building = 2 where id = 1;
+UPDATE student_address SET student_id = 192 where id = 1;
